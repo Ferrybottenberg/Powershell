@@ -1,10 +1,21 @@
 #  This script can be used to import certificates Non as Secure way and auto (Un)bind certificate
+#  after import the new certificate the thumbprint of the certifacte with the latest expiration date will be used for binding.
+#  STS certificate is ignored.
 
 
 
 function ImportCertPfxNonSecure()
 {
-    # import cert without secure pwd
+    <#
+
+    .SYNOPSIS
+    Import cert without secure pwd
+
+    .PARAMETER
+    PFX file location
+
+    #>
+
    
     param(
         [string]$filepathcert,
@@ -27,7 +38,15 @@ function ImportCertPfxNonSecure()
 
 function ImportCertPfxSecure()
 {
-    # Import cert with secure pwd
+    <#
+
+    .SYNOPSIS
+    Import cert with secure pwd
+
+    .PARAMETER
+    PFX file location
+
+    #>
 
      param(
         [string]$filepathcert
@@ -52,10 +71,35 @@ function ImportCertPfxSecure()
 
 function GetCertThumbprint()
 {
-    # get cert thumprint from latests expiration date
-       
-    $cert = Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | Select-Object -Last 1  #select cert with latest date       
-    return $cert.Thumbprint
+
+    <#
+
+    .SYNOPSIS
+     Get and return certificate information
+
+    .PARAMETER
+    Argument for the select-object
+
+    #>
+
+    
+    param(
+        [string]$itime
+    )
+
+    try{
+        switch($itime)
+        {
+
+           last{Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | select-Object -Last 1}
+           first{Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | select-Object -First 1}
+    
+        }
+    } catch {
+
+         return "Cannot find unbinded certificates", $_.ScriptStackTrace
+
+    }
 
 }
 
@@ -63,7 +107,13 @@ function GetCertThumbprint()
 
 function GetBindings()
 {
-    # get all cert bindings
+
+    <#
+
+    .SYNOPSIS
+     Get all cert bindings
+    
+    #>    
     
     try{
 
@@ -79,7 +129,15 @@ function GetBindings()
 
 function GetCertHash()
 {
-    # get cert hash from binded port
+    <#
+
+    .SYNOPSIS
+    get cert hash from binded port
+
+    .PARAMETER
+    port
+
+    #>
 
     param(
         [int]$port
@@ -104,7 +162,12 @@ function GetCertHash()
 
 function Logs()
 {
-    # write to logfile
+     <#
+
+    .SYNOPSIS
+    Write outout to logfile
+    
+    #>
 
 
     return "$env:USERPROFILE\Downloads\CertificateLog_$(Get-Date -f yyyy-MM-dd_HHmmss).log"
@@ -115,7 +178,15 @@ function Logs()
 
 function UnbindCert()
 {
-      # Delete ssl binding
+     <#
+
+    .SYNOPSIS
+    Unbind certificate from port
+
+    .PARAMETER
+    Port number
+
+    #>
       
       param(
         [string]$port
@@ -137,6 +208,18 @@ function UnbindCert()
 
 function BindCert()
 {
+    <#
+
+    .SYNOPSIS
+    Bind certificate to port
+
+    .PARAMETER
+    Port
+
+    .PARAMETER
+    contains Thumbprint / certificate hash of newly bindend certificate
+
+    #>
 
     param(
     [string]$port,
@@ -166,6 +249,67 @@ function BindCert()
 }
   
 
+function CompareItems()
+{
+    <#
+
+    .SYNOPSIS
+    compare two variables
+
+    .PARAMETER
+    item a
+
+    .PARAMETER
+    item b
+
+    
+    #>
+
+    param(
+        [string]$itemA,
+        [string]$itemB
+    )
+
+    write-host "A" $itemA
+    write-host "B" $itemB
+
+    try{
+       
+        if($itemA -eq $itemB){
+
+            return "Compared Item A with Item B, both are the same."
+
+        } else {
+
+            return $itemB
+
+        }
+    } catch {
+    
+        return "Cannot Compare:",  $_.ScriptStackTrace
+        
+    }
+}
+
+
+function DelCert()
+{
+
+    param(
+    [string]$thumbprint
+    )
+
+    try{
+
+        return (Get-ChildItem Cert:\LocalMachine\My\$thumbprint | Remove-Item)
+
+    } catch {
+
+        return "Cannot delete certificate: ", $_.ScriptStackTrace
+    }
+}
+
+
 
 ################################################################
 
@@ -175,8 +319,11 @@ $log = logs
 
 
 
-# 1. (Optional) Import new cert
-#$filepathcert = '<cert>.pfx'
+# read from ?? klaas-bram
+
+
+# 1. Import new cert
+#$filepathcert = 'c:\1Node6.envac.local8-9.pfx'
 
 ## use this if you want to use a non secure pwd
 #$pwd = '<pwd>'
@@ -188,8 +335,13 @@ $log = logs
 
 
 
-# 2. get thumbprint of the cert with latest expiration date
-$thumbprint = GetCertThumbprint 
+# 2. Get thumbprint of the cert with latest expiration date
+$ilast = 'last'
+$thumbprintlast = GetCertThumbprint $ilast    # returns all parameters of certificate
+$thumbprintlast = $thumbprintlast.Thumbprint  # get only the thumbprint
+
+
+
 
 
 # 3. Get bindings and write to logfile
@@ -198,18 +350,60 @@ GetBindings | Out-File $log -Append
 
 
 $array = @(443,29912,444)
-# 4. unbind certificate
+# 4. Unbind certificate
 foreach($port in $array) {
 
     UnbindCert $port | Out-File $log -Append
-
+    
 }
+
 
 
 # 5. Bind certificate
 foreach($port in $array) {
 
-    BindCert $port $thumbprint  | Out-File $log -Append
-
+    BindCert $port $thumbprintlast  | Out-File $log -Append
+    
 }
 
+
+# 6. Get bindings and write to logfile
+#GetBindings 
+
+
+
+# 7. Delete Unbinded certificate
+# Get thumbprint and expiration date of the cert with first expiration date
+$ifirst = 'first'
+$thumbprintfirst = GetCertThumbprint $ifirst    # returns all parameters of certificate
+$thumbprintfirst = $thumbprintfirst.Thumbprint  # get only the thumbprint
+
+# Get certifcate hash from binded port
+$port = 443
+$bindedcerthash = GetCertHash $port 
+
+#call function to compare binded and unbinded thumbprint
+write-host "last " $thumbprintlast
+write-host "First " $thumbprintfirst
+write-host "bindend " $bindedcerthash
+write-host "unbinded " $thumbprintfirst
+
+#call compareitems and return unbinded thumbprint and use as arg into function delcert
+$cert = CompareItems $bindedcerthash $thumbprintfirst
+write-host $cert
+
+
+if($cert -gt 1 ){write-host " space"}
+
+
+
+
+
+
+#? wat is parameter -last object = positionin array
+# change how to get latest cert.. do it by expiration time and not -last first
+# then fix nr 7
+
+# write to logs
+# read arg from start script  <script> arg1 <loc_of_pfx>   arg2 <ww>  arg3 < ofelia, ups, SS > and call the right functions using if statemnt
+# make arg in start script mandatory
