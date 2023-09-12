@@ -3,14 +3,14 @@
   Version : 0.1
   Date    : 12-9-2023
 
-  This script can be used to import certificates (NonSecure) and auto (Un)bind certificate
+  This script can be used to import certificates (NonSecure) and auto (Un)bind old with new certificate.
   after import the new certificate the thumbprint of the certifacte with the latest expiration date will be used for binding and the old non used 
   certificate will be deleted. 
   the STS certificate will be ignored.
 
 
   Start the script with three arguments. All arguments are mandatory and will be used to import the right certificate at the right way.
-    Start powershell ISE as "Administrator" and run one of the codes below.
+  Start powershell ISE as "Administrator" and run one of the codes below.
   
   Start script example:  
 
@@ -22,6 +22,9 @@
             
                     >>    .\<scriptname>.ps1 c:\certificate.pfx 1234 ups
 
+
+
+    NOTE: Script only works if a certificate is already installed.
 #>
 
 
