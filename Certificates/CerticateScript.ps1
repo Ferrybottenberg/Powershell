@@ -1,7 +1,28 @@
-#  This script can be used to import certificates Non as Secure way and auto (Un)bind certificate
-#  after import the new certificate the thumbprint of the certifacte with the latest expiration date will be used for binding.
-#  STS certificate is ignored.
+<#
 
+  This script can be used to import certificates Non as Secure way and auto (Un)bind certificate
+  after import the new certificate the thumbprint of the certifacte with the latest expiration date will be used for binding.
+  STS certificate is ignored.
+
+#>
+
+
+
+##################### START SCRIPT #####################
+
+# read with named params. can be both names and unnamed:
+# .\test.ps1 -cert cert.pfx -pwd 2134 -system ofelia
+# .\test.ps1 cert.pfx 2134 ofelia
+
+param( 
+    [parameter (Mandatory)]$cert,
+    [parameter (Mandatory)]$pwd,
+    [parameter (Mandatory)]$system
+    )
+
+    
+
+##################### Functions ##################### 
 
 
 function ImportCertPfxNonSecure()
@@ -77,22 +98,12 @@ function GetAllCertInfo()
     .SYNOPSIS
      Get and return certificate information
 
-
-
     #>
 
     try{
-
         
         return Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'}
 
-    #    switch($itime)
-    #    {
-    #
-    #       last{Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | select-Object -Last 1}
-    #       first{Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | select-Object -First 1}
-    #
-    #    }
     } catch {
 
          return "Cannot find unbinded certificates", $_.ScriptStackTrace
@@ -332,79 +343,102 @@ function DelCert()
 
 
 
-################################################################
 
+function UnitePS()
+{
+
+
+
+    # 1. Import new cert
+    #$filepathcert = 'c:\1Node6.envac.local8-9.pfx'
+
+    ## use this if you want to use a non secure pwd
+    #$pwd = '<pwd>'
+    #$certificate = ImportCertPfxNonSecure $cert $pwd | Out-File $log -Append
+
+    ## use this if you want to use a secure pwd
+    #$cert = ImportCertPfxSecure $filepathcert | Out-File $log -Append
+
+
+
+
+    # 2. Get thumbprint of the cert with latest expiration date
+    #    returns all information of all isntalled certificates
+    #    call comparecert and receive only the thumbprint with the latest expiration date
+    $certinfo = GetAllCertInfo 
+    $thumbprintnew = CompareCert $certinfo 
+    write-host "thumbprint new: " $thumbprintnew
+
+
+
+
+    # 3.  Get the certifcate hash from the current binded port 443
+    $port = 443
+    $thumbprintold= GetCertHash $port 
+    write-host "thumbprint old: " $thumbprintold
+
+
+
+    # 4. Get bindings and write to logfile
+    GetBindings | Out-File $log -Append
+
+
+    # 5 and 6. (Un)bind certificate
+    $array = @(443,29912,444)
+    foreach($port in $array) {
+
+        UnbindCert $port | Out-File $log -Append
+    
+    }
+
+    foreach($port in $array) {
+
+        BindCert $port $thumbprintnew  | Out-File $log -Append
+    
+    }
+
+
+
+    # 7. Get the new bindings and write to logfile
+    GetBindings | Out-File $log -Append
+
+
+
+    # 8. Delete unbinded certificate
+    DelCert $thumbprintold | Out-File $log -Append
+    write-host "Deleted certificate thumbprint" $thumbprintold
+
+
+}
+
+function ofelia()
+{
+    write-host "Hi Ofelia"
+}
+
+
+##################### Logs ##################### 
 
 # call Log function
 $log = logs
 
 
-# read from ?? klaas-bram
 
 
-# 1. Import new cert
-#$filepathcert = 'c:\1Node6.envac.local8-9.pfx'
-
-## use this if you want to use a non secure pwd
-#$pwd = '<pwd>'
-#$cert = ImportCertPfxNonSecure $filepathcert $pwd | Out-File $log -Append
-
-## use this if you want to use a secure pwd
-#$cert = ImportCertPfxSecure $filepathcert | Out-File $log -Append
+##################### system ##################### 
 
 
+if($system -eq "ups"){
+    UnitePS
+} elseif($system -eq "ofelia"){
+    Ofelia
+} else {
+    write-host "No system found!"
+    }
 
-
-# 2. Get thumbprint of the cert with latest expiration date
-#    returns all information of all isntalled certificates
-#    call comparecert and receive only the thumbprint with the latest expiration date
-$certinfo = GetAllCertInfo 
-$thumbprintnew = CompareCert $certinfo 
-write-host "thumbprint new: " $thumbprintnew
-
-
-
-
-# 3.  Get the certifcate hash from the current binded port 443
-$port = 443
-$thumbprintold= GetCertHash $port 
-write-host "thumbprint old: " $thumbprintold
-
-
-
-# 4. Get bindings and write to logfile
-GetBindings | Out-File $log -Append
-
-
-# 5 and 6. (Un)bind certificate
-$array = @(443,29912,444)
-foreach($port in $array) {
-
-    UnbindCert $port | Out-File $log -Append
-    
-}
-
-foreach($port in $array) {
-
-    BindCert $port $thumbprintnew  | Out-File $log -Append
-    
-}
-
-
-
-# 7. Get the new bindings and write to logfile
-GetBindings | Out-File $log -Append
-
-
-
-# 8. Delete unbinded certificate
-DelCert $thumbprintold | Out-File $log -Append
-write-host "Deleted certificate thumbprint" $thumbprintold
 
 
 
 
 
 # write to logs
-# read arg from start script  <script> arg1 <loc_of_pfx>   arg2 <ww>  arg3 < ofelia, ups, SS > and call the right functions using if statemnt
-# make arg in start script mandatory
