@@ -3,6 +3,8 @@
   Check if resource exist on http server
 
  .Desciption
+  import script into another ps1 script by doing:  . PSScriptRoot/write-log.ps1
+  
   Log default to logs/default.log relatief to folder where powershell script is that is calling this function
   With $env:LOG_FILE you can change to your one desire.
 
@@ -13,6 +15,7 @@
   The string to log to file
 
  .Example
+
    $fileExist = writelog "Verboase" "Something to log"
 #>
 function writelog
