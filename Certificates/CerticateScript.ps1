@@ -69,7 +69,7 @@ function ImportCertPfxSecure()
 
 
 
-function GetCertThumbprint()
+function GetAllCertInfo()
 {
 
     <#
@@ -77,24 +77,22 @@ function GetCertThumbprint()
     .SYNOPSIS
      Get and return certificate information
 
-    .PARAMETER
-    Argument for the select-object
+
 
     #>
 
-    
-    param(
-        [string]$itime
-    )
-
     try{
-        switch($itime)
-        {
 
-           last{Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | select-Object -Last 1}
-           first{Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | select-Object -First 1}
-    
-        }
+        
+        return Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'}
+
+    #    switch($itime)
+    #    {
+    #
+    #       last{Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | select-Object -Last 1}
+    #       first{Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'} | select-Object -First 1}
+    #
+    #    }
     } catch {
 
          return "Cannot find unbinded certificates", $_.ScriptStackTrace
@@ -175,7 +173,6 @@ function Logs()
 }
 
 
-
 function UnbindCert()
 {
      <#
@@ -202,7 +199,7 @@ function UnbindCert()
         return "Cannot delete SSL Certificate binding for $port.",  $_.ScriptStackTrace
 
       }
-    }
+}
 
 
 
@@ -249,55 +246,79 @@ function BindCert()
 }
   
 
-function CompareItems()
+function CompareCert()
 {
     <#
 
     .SYNOPSIS
-    compare two variables
+    Stores both thumbprints of the array position 0 and 1 into a variable.
+    Stores both Expiration date of the array position 0 and 1 into a variable
+    Stores current date into a variable
+    Then compares both dates with the current date and the thumbprint of the timestamp that is most away from current date will be returned
 
     .PARAMETER
-    item a
-
-    .PARAMETER
-    item b
-
+    contains all certificate data and stored in an array
+        
     
     #>
 
     param(
-        [string]$itemA,
-        [string]$itemB
-    )
-
-    write-host "A" $itemA
-    write-host "B" $itemB
-
-    try{
+        [array]$certinfo
+       )
+           
        
-        if($itemA -eq $itemB){
+    try{
+        $thumbprint1 = $certinfo[0].Thumbprint
+        $thumbprint2 = $certinfo[1].Thumbprint
+    
+    
+        $timestamp1 = $certinfo[0].NotAfter
+        $timestamp2 = $certinfo[1].NotAfter         
+   
+        $currentTimestamp = Get-Date
 
-            return "Compared Item A with Item B, both are the same."
 
-        } else {
+        $timeDifference1 = New-TimeSpan -Start $currentTimestamp -End $timestamp1
+        $timeDifference2 = New-TimeSpan -Start $currentTimestamp -End $timestamp2
 
-            return $itemB
 
-        }
+
+        if ($timeDifference1 -gt $timeDifference2) {
+   
+            return $thumbprint1
+
+         } else {
+
+             return $thumbprint2
+         }
+
     } catch {
     
-        return "Cannot Compare:",  $_.ScriptStackTrace
+        return "Cannot Compare timestamps. there is only one certificate to compare",  $_.ScriptStackTrace
         
     }
-}
+
+
+} 
+
 
 
 function DelCert()
 {
+    <#
+    .SYNOPSIS
+    Delete certificate based on thumbprint
+
+    .PARAMETER
+    Certficate Tumbprint 
+    
+    #>
+    
 
     param(
     [string]$thumbprint
     )
+
 
     try{
 
@@ -315,8 +336,7 @@ function DelCert()
 
 
 # call Log function
-$log = logs 
-
+$log = logs
 
 
 # read from ?? klaas-bram
@@ -336,73 +356,54 @@ $log = logs
 
 
 # 2. Get thumbprint of the cert with latest expiration date
-$ilast = 'last'
-$thumbprintlast = GetCertThumbprint $ilast    # returns all parameters of certificate
-$thumbprintlast = $thumbprintlast.Thumbprint  # get only the thumbprint
+#    returns all information of all isntalled certificates
+#    call comparecert and receive only the thumbprint with the latest expiration date
+$certinfo = GetAllCertInfo 
+$thumbprintnew = CompareCert $certinfo 
+write-host "thumbprint new: " $thumbprintnew
 
 
 
 
+# 3.  Get the certifcate hash from the current binded port 443
+$port = 443
+$thumbprintold= GetCertHash $port 
+write-host "thumbprint old: " $thumbprintold
 
-# 3. Get bindings and write to logfile
+
+
+# 4. Get bindings and write to logfile
 GetBindings | Out-File $log -Append
 
 
-
+# 5 and 6. (Un)bind certificate
 $array = @(443,29912,444)
-# 4. Unbind certificate
 foreach($port in $array) {
 
     UnbindCert $port | Out-File $log -Append
     
 }
 
-
-
-# 5. Bind certificate
 foreach($port in $array) {
 
-    BindCert $port $thumbprintlast  | Out-File $log -Append
+    BindCert $port $thumbprintnew  | Out-File $log -Append
     
 }
 
 
-# 6. Get bindings and write to logfile
-#GetBindings 
+
+# 7. Get the new bindings and write to logfile
+GetBindings | Out-File $log -Append
 
 
 
-# 7. Delete Unbinded certificate
-# Get thumbprint and expiration date of the cert with first expiration date
-$ifirst = 'first'
-$thumbprintfirst = GetCertThumbprint $ifirst    # returns all parameters of certificate
-$thumbprintfirst = $thumbprintfirst.Thumbprint  # get only the thumbprint
-
-# Get certifcate hash from binded port
-$port = 443
-$bindedcerthash = GetCertHash $port 
-
-#call function to compare binded and unbinded thumbprint
-write-host "last " $thumbprintlast
-write-host "First " $thumbprintfirst
-write-host "bindend " $bindedcerthash
-write-host "unbinded " $thumbprintfirst
-
-#call compareitems and return unbinded thumbprint and use as arg into function delcert
-$cert = CompareItems $bindedcerthash $thumbprintfirst
-write-host $cert
-
-
-if($cert -gt 1 ){write-host " space"}
+# 8. Delete unbinded certificate
+DelCert $thumbprintold | Out-File $log -Append
+write-host "Deleted certificate thumbprint" $thumbprintold
 
 
 
 
-
-
-#? wat is parameter -last object = positionin array
-# change how to get latest cert.. do it by expiration time and not -last first
-# then fix nr 7
 
 # write to logs
 # read arg from start script  <script> arg1 <loc_of_pfx>   arg2 <ww>  arg3 < ofelia, ups, SS > and call the right functions using if statemnt
