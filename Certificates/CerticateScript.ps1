@@ -43,50 +43,21 @@ function ImportCertPfxNonSecure()
         [string]$certpwd
     )
 
+
     try{
 
-        return Import-PfxCertificate  -FilePath $filepathcert -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString $certpwd -AsPlainText -Force)
+        Import-PfxCertificate  -FilePath $filepathcert -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString $certpwd -AsPlainText -Force)
+        return
 
     } catch {
 
         return "Cannot import certificate: ", $_.ScriptStackTrace
-
+        
     }
 
   
 }
 
-
-function ImportCertPfxSecure()
-{
-    <#
-
-    .SYNOPSIS
-    Import cert with secure pwd
-
-    .PARAMETER
-    PFX file location
-
-    #>
-
-     param(
-        [string]$filepathcert
-    )
-
-    $certpwd = Get-Credential -UserName 'Enter password below' -Message 'Enter password below'
-    $certpwd = $certpwd.Password
-
-    try{
-
-       return Import-PfxCertificate  -FilePath $filepathcert -CertStoreLocation Cert:\LocalMachine\My -Password $certpwd
-
-    } catch {
-
-       return "Cannot import certificate: ", $_.ScriptStackTrace
-    }
-
-
-}
 
 
 
@@ -342,76 +313,115 @@ function DelCert()
 }
 
 
+function CheckImportCert()
+{
+    <#
 
+    .SYNOPSIS
+    Checks the length of the parameter. If value is zero then the function exit the script.
+
+    .PARAMETERS
+    Thumbprint of the new imported certificate
+
+    #>
+
+    param(
+        [string]$certificateinfo
+    )
+
+    if($certificateinfo.Length -eq '0'){
+
+       return "Import Certificate failed. Exit script."
+       Exit
+
+    } else {
+       
+        return "Certificate Import succesfully"
+
+    }
+
+       
+}
+
+
+##################### function "system choice" ##################### 
 
 function UnitePS()
 {
 
+    <##>
 
-
+    param(
+        [string]$certificateimport,
+        [string]$password
+    )
+    
+       
     # 1. Import new cert
-    #$filepathcert = 'c:\1Node6.envac.local8-9.pfx'
-
-    ## use this if you want to use a non secure pwd
-    #$pwd = '<pwd>'
-    #$certificate = ImportCertPfxNonSecure $cert $pwd | Out-File $log -Append
-
-    ## use this if you want to use a secure pwd
-    #$cert = ImportCertPfxSecure $filepathcert | Out-File $log -Append
-
-
-
-
-    # 2. Get thumbprint of the cert with latest expiration date
-    #    returns all information of all isntalled certificates
-    #    call comparecert and receive only the thumbprint with the latest expiration date
-    $certinfo = GetAllCertInfo 
-    $thumbprintnew = CompareCert $certinfo 
-    write-host "thumbprint new: " $thumbprintnew
-
-
-
-
-    # 3.  Get the certifcate hash from the current binded port 443
-    $port = 443
-    $thumbprintold= GetCertHash $port 
-    write-host "thumbprint old: " $thumbprintold
-
-
-
-    # 4. Get bindings and write to logfile
-    GetBindings | Out-File $log -Append
-
-
-    # 5 and 6. (Un)bind certificate
-    $array = @(443,29912,444)
-    foreach($port in $array) {
-
-        UnbindCert $port | Out-File $log -Append
+    $result = ImportCertPfxNonSecure $certificateimport $password
+    $result = $result.Thumbprint
     
-    }
-
-    foreach($port in $array) {
-
-        BindCert $port $thumbprintnew  | Out-File $log -Append
+    # import checken
+    $continuecheck = CheckImportCert $result
     
+    write-host "1" $continuecheck
+    $continuecheck.gettype()
+
+    if($continuecheck -like "*succesfully*"){
+        
+        write-host "2" $continuecheck
+
+        # 2. Get thumbprint of the cert with latest expiration date
+        #    returns all information of all isntalled certificates
+        #    call comparecert and receive only the thumbprint with the latest expiration date
+    
+        $certinfo = GetAllCertInfo 
+        $thumbprintnew = CompareCert $certinfo 
+        write-host "thumbprint new: " $thumbprintnew
+
+
+
+
+        # 3.  Get the certifcate hash from the current binded port 443
+        $port = 443
+        $thumbprintold= GetCertHash $port 
+        write-host "thumbprint old: " $thumbprintold
+
+
+
+        # 4. Get bindings and write to logfile
+        GetBindings | Out-File $log -Append
+
+
+        # 5 and 6. (Un)bind certificate
+        $array = @(443,29912,444)
+        foreach($port in $array) {
+
+            UnbindCert $port | Out-File $log -Append
+    
+        }
+
+        foreach($port in $array) {
+
+            BindCert $port $thumbprintnew  | Out-File $log -Append
+    
+        }
+
+
+
+        # 7. Get the new bindings and write to logfile
+        GetBindings | Out-File $log -Append
+
+
+
+        # 8. Delete unbinded certificate
+        DelCert $thumbprintold | Out-File $log -Append
+        write-host "Deleted certificate thumbprint" $thumbprintold
     }
-
-
-
-    # 7. Get the new bindings and write to logfile
-    GetBindings | Out-File $log -Append
-
-
-
-    # 8. Delete unbinded certificate
-    DelCert $thumbprintold | Out-File $log -Append
-    write-host "Deleted certificate thumbprint" $thumbprintold
-
 
 }
 
-function ofelia()
+function Ofelia()
 {
     write-host "Hi Ofelia"
 }
@@ -427,14 +437,16 @@ $log = logs
 
 ##################### system ##################### 
 
-
+# first step after starting script
 if($system -eq "ups"){
-    UnitePS
+    UnitePS $cert $pwd 
 } elseif($system -eq "ofelia"){
     Ofelia
+} elseif($system -eq "smartsense"){
+    Smartsense
 } else {
     write-host "No system found!"
-    }
+}
 
 
 
@@ -442,3 +454,5 @@ if($system -eq "ups"){
 
 
 # write to logs
+# write for Ofelia
+# write for SS
