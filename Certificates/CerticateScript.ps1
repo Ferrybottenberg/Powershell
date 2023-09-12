@@ -38,8 +38,20 @@
 
 #>
 
-##################### START SCRIPT #####################
 
+
+
+
+
+
+
+
+##################### Generic import ###################
+. $PSScriptRoot/write-log.ps1
+
+
+
+##################### START SCRIPT #####################
 # read with named params. can be both names and unnamed
 
 param( 
@@ -60,10 +72,10 @@ function ImportCertPfxNonSecure()
     .SYNOPSIS
         Import certificate without secured pwd
 
-    .PARAMETER FirstParameter
+    .PARAMETER $filepathcert
         PFX certificate with file location
 
-    .PARAMETER SecondParameter
+    .PARAMETER $certpwd
         PFX certificate password
 
     #>
@@ -141,8 +153,8 @@ function GetCertHash()
     .SYNOPSIS
         Get cert hash from binded port
 
-    .PARAMETER FirstParameter
-        port
+    .PARAMETER $port
+        contains port number
 
     #>
 
@@ -174,11 +186,28 @@ function Logs()
      <#
 
     .SYNOPSIS
-    Write outout to logfile
+        Write outout to a logfile using a external script
     
+    .PARAMETER $Loglevel
+        Levels: ("Verbose", "Warning", "Error", "Default")
+
+    .PARAMETER $logmsg
+        Log message
+
     #>
 
-    return "$env:USERPROFILE\Downloads\CertificateLog_$(Get-Date -f yyyy-MM-dd_HHmmss).log"
+    param(
+    
+        [string]$loglevel,
+        [string]$logmsg
+    
+    )
+
+
+    write-log $loglevel $logmsg
+
+    #return "$env:USERPROFILE\Downloads\CertificateLog_$(Get-Date -f yyyy-MM-dd_HHmmss).log"
+    
 
 }
 
@@ -190,8 +219,8 @@ function UnbindCert()
     .SYNOPSIS
         Unbind certificate from port
 
-    .PARAMETER FirstParameter
-        Port 
+    .PARAMETER $port
+        contains port number
 
     #>
       
@@ -223,10 +252,10 @@ function BindCert()
     .SYNOPSIS
         Bind certificate to port
 
-    .PARAMETER FirstParameter
-        Port
+    .PARAMETER $port
+        contains port number
 
-    .PARAMETER SecondParameter
+    .PARAMETER $certhash
         contains Thumbprint / certificate hash of newly bindend certificate
 
     #>
@@ -276,7 +305,7 @@ function CompareCert()
         Then compares both dates with the current date and the thumbprint of the timestamp that is most away from current date will be returned
 
 
-    .PARAMETER FirstParameter
+    .PARAMETER $certinfo
         contains all certificate data and stored in an array 
     
     #>
@@ -330,8 +359,8 @@ function DelCert()
     .SYNOPSIS
         Delete certificate based on thumbprint
 
-    .PARAMETER FirstParameter
-        Certficate Tumbprint 
+    .PARAMETER $thumbprint
+        Certficate Thumbprint 
     
     #>
     
@@ -361,7 +390,7 @@ function CheckImportCert()
     .SYNOPSIS
         Checks the length of the parameter. If value is zero then the function exit the script.
 
-    .PARAMETER FirstParameter
+    .PARAMETER $certificateinfo
         Thumbprint of the new imported certificate
 
     #>
@@ -407,10 +436,10 @@ function UnitePS()
         various functions are called including import, control import, un- and binding and delete unused certificate. 
         All output will be saved in a logfile.
 
-    .PARAMETER FirstParameter
+    .PARAMETER $certificateimport
         Imports the first arg. certificate 
 
-    .PARAMETER SecondParameter
+    .PARAMETER $certificatepassword
         Imports the second arg. password
 
     #>
@@ -493,10 +522,6 @@ function Ofelia()
 }
 
 
-##################### Logs ##################### 
-
-# call Log function
-$log = logs
 
 
 
@@ -505,13 +530,13 @@ $log = logs
 
 # first step after starting script
 
-
 if($system -eq "ups"){
     
     if($cert -notlike "*.pfx"){
     
         write-host "Invalid input or order. Certificate must be of the '.pfx' type`n"
         Write-host "Input order: Certificate(.PFX) / Password / System "
+        
 
     } else {
 
