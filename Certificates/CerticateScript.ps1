@@ -24,7 +24,7 @@
 
 
 
-    NOTE: Script only works if a certificate is already installed.
+    NOTE: Script only works if a certificate is already installed. And Single node only
 #>
 
 
@@ -484,6 +484,12 @@ function UnitePS()
 function Ofelia()
 {
     write-host "Hi Ofelia"
+    # todo
+    # check input
+    # check if cert location exist
+    # check if cert loc is not empty
+    # override  cert
+    # test if reload service is needed
 }
 
 
