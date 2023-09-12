@@ -1,8 +1,24 @@
 <#
 
-  This script can be used to import certificates Non as Secure way and auto (Un)bind certificate
-  after import the new certificate the thumbprint of the certifacte with the latest expiration date will be used for binding.
-  STS certificate is ignored.
+  This script can be used to import certificates (NonSecure) and auto (Un)bind certificate
+  after import the new certificate the thumbprint of the certifacte with the latest expiration date will be used for binding and the old non used 
+  certificate will be deleted. 
+  the STS certificate will be ignored.
+
+
+  Start the script with three arguments. All arguments are mandatory and will be used to import the right certificate at the right way.
+  
+  Start powershell ISE as "Administrator" and run one of the codes below.
+  
+  Start script example:  
+
+            >>    .\CertificateRI.ps1 -cert <path\to\pfx> -pwd <pfx\pwd> -system <UPS\Ofelia\USS>
+            
+            >>    .\CertificateRI.ps1 -cert c:\certificate.pfx -pwd 1234 -system ups
+
+                or
+            
+            >>    .\CertificateRI.ps1 c:\certificate.pfx 1234 ups
 
 #>
 
@@ -10,9 +26,7 @@
 
 ##################### START SCRIPT #####################
 
-# read with named params. can be both names and unnamed:
-# .\test.ps1 -cert cert.pfx -pwd 2134 -system ofelia
-# .\test.ps1 cert.pfx 2134 ofelia
+# read with named params. can be both names and unnamed
 
 param( 
     [parameter (Mandatory)]$cert,
@@ -30,10 +44,13 @@ function ImportCertPfxNonSecure()
     <#
 
     .SYNOPSIS
-    Import cert without secure pwd
+        Import certificate without secured pwd
 
-    .PARAMETER
-    PFX file location
+    .PARAMETER FirstParameter
+        PFX certificate with file location
+
+    .PARAMETER SecondParameter
+        PFX certificate password
 
     #>
 
@@ -112,9 +129,9 @@ function GetCertHash()
     <#
 
     .SYNOPSIS
-    get cert hash from binded port
+    Get cert hash from binded port
 
-    .PARAMETER
+    .PARAMETER FirstParameter
     port
 
     #>
@@ -162,8 +179,8 @@ function UnbindCert()
     .SYNOPSIS
     Unbind certificate from port
 
-    .PARAMETER
-    Port number
+    .PARAMETER FirstParameter
+    Port 
 
     #>
       
@@ -192,10 +209,10 @@ function BindCert()
     .SYNOPSIS
     Bind certificate to port
 
-    .PARAMETER
+    .PARAMETER FirstParameter
     Port
 
-    .PARAMETER
+    .PARAMETER SecondParameter
     contains Thumbprint / certificate hash of newly bindend certificate
 
     #>
@@ -233,12 +250,16 @@ function CompareCert()
     <#
 
     .SYNOPSIS
+    Compares two timestamps and returns the thumbprint with the newest expiration date (notAfter)
+
+    .DESCRIPTION
     Stores both thumbprints of the array position 0 and 1 into a variable.
     Stores both Expiration date of the array position 0 and 1 into a variable
     Stores current date into a variable
     Then compares both dates with the current date and the thumbprint of the timestamp that is most away from current date will be returned
 
-    .PARAMETER
+
+    .PARAMETER FirstParameter
     contains all certificate data and stored in an array
         
     
@@ -288,10 +309,11 @@ function CompareCert()
 function DelCert()
 {
     <#
+
     .SYNOPSIS
     Delete certificate based on thumbprint
 
-    .PARAMETER
+    .PARAMETER FirstParameter
     Certficate Tumbprint 
     
     #>
@@ -320,7 +342,7 @@ function CheckImportCert()
     .SYNOPSIS
     Checks the length of the parameter. If value is zero then the function exit the script.
 
-    .PARAMETERS
+    .PARAMETER FirstParameter
     Thumbprint of the new imported certificate
 
     #>
@@ -329,9 +351,11 @@ function CheckImportCert()
         [string]$certificateinfo
     )
 
+    try {
     if($certificateinfo.Length -eq '0'){
 
        return "Import Certificate failed. Exit script."
+       Write-Host "1"
        Exit
 
     } else {
@@ -339,6 +363,12 @@ function CheckImportCert()
         return "Certificate Import succesfully"
 
     }
+
+    } catch {
+
+        write-host " wron"
+
+        }
 
        
 }
@@ -349,7 +379,23 @@ function CheckImportCert()
 function UnitePS()
 {
 
-    <##>
+    <#
+
+    .SYNAPSIS
+    This function handles certificate replacement for the UnitePS server.
+    
+    .DESCRIPTION
+    various functions are called including import, control import, un- and binding and delete unused certificate. 
+    All output will be saved in a logfile.
+
+
+    .PARAMETER FirstParameter
+    Imports the first arg. certificate 
+
+    .PARAMETER SecondParameter
+    Imports the second arg. password
+
+    #>
 
     param(
         [string]$certificateimport,
@@ -361,13 +407,13 @@ function UnitePS()
     $result = ImportCertPfxNonSecure $certificateimport $password
     $result = $result.Thumbprint
     
-    # import checken
+    # 2. import checken
     $continuecheck = CheckImportCert $result
-    
+        
     if($continuecheck -like "*succesfully*"){
         
         
-        # 2. Get thumbprint of the cert with latest expiration date
+        # 3. Get thumbprint of the cert with latest expiration date
         #    returns all information of all isntalled certificates
         #    call comparecert and receive only the thumbprint with the latest expiration date
     
@@ -375,22 +421,20 @@ function UnitePS()
         $thumbprintnew = CompareCert $certinfo 
         write-host "thumbprint new: " $thumbprintnew
 
-
-
-
-        # 3.  Get the certifcate hash from the current binded port 443
+        
+        # 4.  Get the certifcate hash from the current binded port 443
         $port = 443
         $thumbprintold= GetCertHash $port 
         write-host "thumbprint old: " $thumbprintold
 
-
-
+        
         # 4. Get bindings and write to logfile
         GetBindings | Out-File $log -Append
 
 
-        # 5 and 6. (Un)bind certificate
+        # 6 and 7. (Un)bind certificate
         $array = @(443,29912,444)
+        
         foreach($port in $array) {
 
             UnbindCert $port | Out-File $log -Append
@@ -403,19 +447,19 @@ function UnitePS()
     
         }
 
-
-
-        # 7. Get the new bindings and write to logfile
+        
+        # 8. Get the new bindings and write to logfile
         GetBindings | Out-File $log -Append
 
-
-
-        # 8. Delete unbinded certificate
+        
+        # 9. Delete unbinded certificate
         DelCert $thumbprintold | Out-File $log -Append
+
         write-host "Deleted certificate thumbprint" $thumbprintold
     }
 
 }
+
 
 function Ofelia()
 {
@@ -434,13 +478,33 @@ $log = logs
 ##################### system ##################### 
 
 # first step after starting script
+
+
 if($system -eq "ups"){
-    UnitePS $cert $pwd 
+    
+    if($cert -notlike "*.pfx"){
+    
+        write-host "Invalid input or order. Certificate must be of the '.pfx' type`n"
+        Write-host "Input order: Certificate(.PFX) / Password / System "
+
+    } else {
+
+        UnitePS $cert $pwd
+
+    }
+  
+
+ 
 } elseif($system -eq "ofelia"){
-    Ofelia
+    
+    Ofelia $cert $pwd 
+
 } elseif($system -eq "smartsense"){
-    Smartsense
+    
+    Smartsense $cert $pwd
+
 } else {
+    
     write-host "No system found!"
 }
 
@@ -449,6 +513,9 @@ if($system -eq "ups"){
 
 
 
+
+
+# TODO
 # write to logs
 # write for Ofelia
-# write for SS
+# write for SS ( dubb cert)
