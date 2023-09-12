@@ -364,13 +364,9 @@ function UnitePS()
     # import checken
     $continuecheck = CheckImportCert $result
     
-    write-host "1" $continuecheck
-    $continuecheck.gettype()
-
     if($continuecheck -like "*succesfully*"){
         
-        write-host "2" $continuecheck
-
+        
         # 2. Get thumbprint of the cert with latest expiration date
         #    returns all information of all isntalled certificates
         #    call comparecert and receive only the thumbprint with the latest expiration date
