@@ -1,5 +1,8 @@
 <#
 
+  Version : 0.1
+  Date    : 12-9-2023
+
   This script can be used to import certificates (NonSecure) and auto (Un)bind certificate
   after import the new certificate the thumbprint of the certifacte with the latest expiration date will be used for binding and the old non used 
   certificate will be deleted. 
@@ -7,22 +10,30 @@
 
 
   Start the script with three arguments. All arguments are mandatory and will be used to import the right certificate at the right way.
-  
-  Start powershell ISE as "Administrator" and run one of the codes below.
+    Start powershell ISE as "Administrator" and run one of the codes below.
   
   Start script example:  
 
-            >>    .\CertificateRI.ps1 -cert <path\to\pfx> -pwd <pfx\pwd> -system <UPS\Ofelia\USS>
+            Format  >>    .\<scriptname>.ps1 -cert <path\to\certificate> -pwd <certificate\password> -system <UPS\Ofelia\USS>
             
-            >>    .\CertificateRI.ps1 -cert c:\certificate.pfx -pwd 1234 -system ups
+                    >>    .\<scriptname>.ps1 -cert c:\certificate.pfx -pwd 1234 -system ups
 
-                or
+                        or
             
-            >>    .\CertificateRI.ps1 c:\certificate.pfx 1234 ups
+                    >>    .\<scriptname>.ps1 c:\certificate.pfx 1234 ups
 
 #>
 
 
+
+
+##################### Release Notes ####################
+<#
+
+    0.1 First release With UPS
+    
+
+#>
 
 ##################### START SCRIPT #####################
 
@@ -30,7 +41,7 @@
 
 param( 
     [parameter (Mandatory)]$cert,
-    [parameter (Mandatory)]$pwd,
+    [parameter (Mandatory)]$certpwd,
     [parameter (Mandatory)]$system
     )
 
@@ -72,46 +83,42 @@ function ImportCertPfxNonSecure()
         
     }
 
-  
 }
-
-
 
 
 function GetAllCertInfo()
 {
-
     <#
 
     .SYNOPSIS
-     Get and return certificate information
+        Get and return certificate information
 
     #>
+
 
     try{
         
         return Get-ChildItem Cert:\LocalMachine\My  | Where-Object {$_.Issuer -notmatch 'Unite Application Manager'}
 
     } catch {
-
-         return "Cannot find unbinded certificates", $_.ScriptStackTrace
+        
+        return "Cannot find unbinded certificates", $_.ScriptStackTrace
 
     }
 
 }
 
 
-
 function GetBindings()
 {
-
     <#
 
     .SYNOPSIS
-     Get all cert bindings
+        Get all cert bindings
     
     #>    
     
+
     try{
 
         return & netsh.exe http show ssl
@@ -129,16 +136,18 @@ function GetCertHash()
     <#
 
     .SYNOPSIS
-    Get cert hash from binded port
+        Get cert hash from binded port
 
     .PARAMETER FirstParameter
-    port
+        port
 
     #>
+
 
     param(
         [int]$port
     )
+
 
     $regex = 'Certificate Hash\s+:\s+([^:\s]+)'
     $arry = @()
@@ -166,7 +175,6 @@ function Logs()
     
     #>
 
-
     return "$env:USERPROFILE\Downloads\CertificateLog_$(Get-Date -f yyyy-MM-dd_HHmmss).log"
 
 }
@@ -177,29 +185,32 @@ function UnbindCert()
      <#
 
     .SYNOPSIS
-    Unbind certificate from port
+        Unbind certificate from port
 
     .PARAMETER FirstParameter
-    Port 
+        Port 
 
     #>
       
+
       param(
+
         [string]$port
+      
       )
      
-      try{
 
-          & netsh.exe http delete ssl ipport=0.0.0.0:$port
-          return "UnBind SSL Certificate port $port succesfully."
+      try{
+        
+        & netsh.exe http delete ssl ipport=0.0.0.0:$port
+        return "UnBind SSL Certificate port $port succesfully."
 
       } Catch {
-
+            
         return "Cannot delete SSL Certificate binding for $port.",  $_.ScriptStackTrace
 
       }
 }
-
 
 
 function BindCert()
@@ -207,23 +218,26 @@ function BindCert()
     <#
 
     .SYNOPSIS
-    Bind certificate to port
+        Bind certificate to port
 
     .PARAMETER FirstParameter
-    Port
+        Port
 
     .PARAMETER SecondParameter
-    contains Thumbprint / certificate hash of newly bindend certificate
+        contains Thumbprint / certificate hash of newly bindend certificate
 
     #>
 
+
     param(
-    [string]$port,
-    [string]$certhash
+
+        [string]$port,
+        [string]$certhash
+
     )
 
+
     $app_id = '{4dc3e181-e14b-4a21-b022-59fc669b0914}'
-    
     try{
 
         if (-not (netsh http show sslcert | Where-Object { $_ -match "IP:port\s+: 0.0.0.0:$port" })) {
@@ -250,24 +264,25 @@ function CompareCert()
     <#
 
     .SYNOPSIS
-    Compares two timestamps and returns the thumbprint with the newest expiration date (notAfter)
+        Compares two timestamps and returns the thumbprint with the newest expiration date (notAfter)
 
     .DESCRIPTION
-    Stores both thumbprints of the array position 0 and 1 into a variable.
-    Stores both Expiration date of the array position 0 and 1 into a variable
-    Stores current date into a variable
-    Then compares both dates with the current date and the thumbprint of the timestamp that is most away from current date will be returned
+        Stores both thumbprints of the array position 0 and 1 into a variable.
+        Stores both Expiration date of the array position 0 and 1 into a variable
+        Stores current date into a variable
+        Then compares both dates with the current date and the thumbprint of the timestamp that is most away from current date will be returned
 
 
     .PARAMETER FirstParameter
-    contains all certificate data and stored in an array
-        
+        contains all certificate data and stored in an array 
     
     #>
 
+
     param(
+
         [array]$certinfo
-       )
+    )
            
        
     try{
@@ -305,22 +320,23 @@ function CompareCert()
 } 
 
 
-
 function DelCert()
 {
     <#
 
     .SYNOPSIS
-    Delete certificate based on thumbprint
+        Delete certificate based on thumbprint
 
     .PARAMETER FirstParameter
-    Certficate Tumbprint 
+        Certficate Tumbprint 
     
     #>
     
 
     param(
-    [string]$thumbprint
+
+        [string]$thumbprint
+
     )
 
 
@@ -340,37 +356,38 @@ function CheckImportCert()
     <#
 
     .SYNOPSIS
-    Checks the length of the parameter. If value is zero then the function exit the script.
+        Checks the length of the parameter. If value is zero then the function exit the script.
 
     .PARAMETER FirstParameter
-    Thumbprint of the new imported certificate
+        Thumbprint of the new imported certificate
 
     #>
+    
 
     param(
+
         [string]$certificateinfo
+
     )
 
     try {
-    if($certificateinfo.Length -eq '0'){
+        if($certificateinfo.Length -eq '0'){
 
-       return "Import Certificate failed. Exit script."
-       Write-Host "1"
-       Exit
+           return "Import Certificate failed. Exit script."
+           Exit
 
-    } else {
+        } else {
        
-        return "Certificate Import succesfully"
+            return "Certificate Import succesfully"
 
-    }
+        }
 
     } catch {
 
         write-host " wron"
 
-        }
-
-       
+    }
+   
 }
 
 
@@ -378,33 +395,33 @@ function CheckImportCert()
 
 function UnitePS()
 {
-
     <#
 
     .SYNAPSIS
-    This function handles certificate replacement for the UnitePS server.
+        This function handles certificate replacement for the UnitePS server.
     
     .DESCRIPTION
-    various functions are called including import, control import, un- and binding and delete unused certificate. 
-    All output will be saved in a logfile.
-
+        various functions are called including import, control import, un- and binding and delete unused certificate. 
+        All output will be saved in a logfile.
 
     .PARAMETER FirstParameter
-    Imports the first arg. certificate 
+        Imports the first arg. certificate 
 
     .PARAMETER SecondParameter
-    Imports the second arg. password
+        Imports the second arg. password
 
     #>
 
+
     param(
+
         [string]$certificateimport,
-        [string]$password
+        [string]$certificatepassword
     )
     
        
     # 1. Import new cert
-    $result = ImportCertPfxNonSecure $certificateimport $password
+    $result = ImportCertPfxNonSecure $certificateimport $certificatepassword
     $result = $result.Thumbprint
     
     # 2. import checken
@@ -489,7 +506,7 @@ if($system -eq "ups"){
 
     } else {
 
-        UnitePS $cert $pwd
+        UnitePS $cert $certpwd
 
     }
   
@@ -516,6 +533,7 @@ if($system -eq "ups"){
 
 
 # TODO
+# check input arg if it is in the order
 # write to logs
 # write for Ofelia
 # write for SS ( dubb cert)
