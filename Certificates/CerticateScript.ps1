@@ -42,25 +42,24 @@
 
 
 
+##################### START SCRIPT #####################
+# read with named params. can be both names and unnamed
 
+# NOTE  THIS MUST BE THE FIRST LINE of CODE. Don't put code above this line!
+
+
+param ( 
+        [parameter (Mandatory)]$cert,
+        [parameter (Mandatory)]$certpwd,
+        [parameter (Mandatory)]$system
+    )
 
 
 
 ##################### Generic import ###################
 . $PSScriptRoot/write-log.ps1
 
-
-
-##################### START SCRIPT #####################
-# read with named params. can be both names and unnamed
-
-param( 
-    [parameter (Mandatory)]$cert,
-    [parameter (Mandatory)]$certpwd,
-    [parameter (Mandatory)]$system
-    )
-
-    
+   
 
 ##################### Functions ##################### 
 
@@ -375,6 +374,7 @@ function DelCert()
     try{
 
         return (Get-ChildItem Cert:\LocalMachine\My\$thumbprint | Remove-Item)
+        
 
     } catch {
 
@@ -503,8 +503,9 @@ function UnitePS()
         
         # 9. Delete unbinded certificate
         DelCert $thumbprintold | Out-File $log -Append
+        $l = writelog "Verbose" "Deleted certificate thumbprint: $thumbprintold"
+        write-output $l
 
-        write-host "Deleted certificate thumbprint" $thumbprintold
     }
 
 }
