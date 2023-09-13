@@ -13,8 +13,10 @@
   The string to log to file
 
  .Example
-   $fileExist = writelog "Verboase" "Something to log"
+   $fileExist = writelog "Verbose" "Something to log"
 #>
+
+
 
 
 function writelog()
@@ -26,12 +28,13 @@ function writelog()
         [string]$sLog
     )
 
-    if (-not(Test-Path -Path $env:LOG_FILE))
+    
+    #if (-not(Test-Path -Path $env:LOG_FILE))
+    if ($Null -eq $env:LOG_FILE -or -not(Test-Path -Path $env:LOG_FILE) ) 
     {
         if ('' -ne $MyInvocation.PSScriptRoot)
         {
-            $folder = Resolve-Path "./Documents" # C:\Users\Administrator
-            write-host $folder
+            $folder = Resolve-Path "./" # C:\Users\Administrator
             New-Item  -Path "$folder/logs" -ItemType Directory
             
             $env:LOG_FILE =  "$folder/logs/default.log"
@@ -78,5 +81,5 @@ function writelog()
 }
 
 
-writelog "Warning" "hallo"
-
+#$ENV:LOG_FILE = ''
+#writelog "Verbose" "hallo"
