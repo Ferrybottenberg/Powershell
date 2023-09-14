@@ -81,5 +81,6 @@ function writelog()
 }
 
 
+
 #$ENV:LOG_FILE = ''
 #writelog "Verbose" "hallo"
