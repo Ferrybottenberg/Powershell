@@ -89,11 +89,11 @@ function ImportCertPfxNonSecure()
     try{
 
         Import-PfxCertificate  -FilePath $filepathcert -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString $certpwd -AsPlainText -Force)
-        return
+        return "Verbose:Import Certificate successful"
 
     } catch {
 
-        return "Cannot import certificate: ", $_.ScriptStackTrace
+        return "Error:Cannot import certificate: ", $_.ScriptStackTrace
         
     }
 
@@ -116,33 +116,13 @@ function GetAllCertInfo()
 
     } catch {
         
-        return "Cannot find unbinded certificates", $_.ScriptStackTrace
+        return "Error:Cannot find unbinded certificates", $_.ScriptStackTrace
 
     }
 
 }
 
 
-function GetBindings()
-{
-    <#
-
-    .SYNOPSIS
-        Get all cert bindings
-    
-    #>    
-    
-
-    try{
-
-        return & netsh.exe http show ssl
-
-    } catch {
-
-        return "Could retrieve bindings.", $_.ScriptStackTrace
-    }
-    
-}
 
 
 function GetCertHash()
@@ -174,7 +154,7 @@ function GetCertHash()
 
     } else {
 
-        return "Did not find binding for port $port"
+        return "Verbose:Did not find binding for port $port"
 
     }
 }
@@ -204,10 +184,7 @@ function Logs()
 
 
     write-log $loglevel $logmsg
-
-    #return "$env:USERPROFILE\Downloads\CertificateLog_$(Get-Date -f yyyy-MM-dd_HHmmss).log"
-    
-
+  
 }
 
 
@@ -233,12 +210,12 @@ function UnbindCert()
 
       try{
         
-        & netsh.exe http delete ssl ipport=0.0.0.0:$port
-        return "UnBind SSL Certificate port $port succesfully."
+        & netsh.exe http delete ssl ipport=0.0.0.0:$port | Out-Null
+        return "Verbose:UnBind SSL Certificate of port $port succesfully."
 
       } Catch {
             
-        return "Cannot delete SSL Certificate binding for $port.",  $_.ScriptStackTrace
+        return "Error:Cannot delete SSL Certificate binding for $port.",  $_.ScriptStackTrace
 
       }
 }
@@ -273,18 +250,18 @@ function BindCert()
 
         if (-not (netsh http show sslcert | Where-Object { $_ -match "IP:port\s+: 0.0.0.0:$port" })) {
 
-            & netsh.exe http add ssl ipport=0.0.0.0:$port certhash=$certhash appid=$app_id clientcertnegotiation=disable
-            return "Bind SSL Certificate port $port succesfully."
+            & netsh.exe http add ssl ipport=0.0.0.0:$port certhash=$certhash appid=$app_id clientcertnegotiation=disable | Out-Null
+            return "Verbose:Bind SSL Certificate port to $port successful."
 
         } else {
 
-            return "Port $port is already in use in a certificate binding."
+            return "Error:Port $port is already in use in a certificate binding."
 
         }
   
     } catch {
 
-        return "Cannot bind SSL Certificate for $port.",  $_.ScriptStackTrace
+        return "Error:Cannot bind SSL Certificate for $port.",  $_.ScriptStackTrace
 
     }
 }
@@ -343,7 +320,7 @@ function CompareCert()
 
     } catch {
     
-        return "Cannot Compare timestamps. there is only one certificate to compare",  $_.ScriptStackTrace
+        return "Error:Cannot Compare timestamps. there is only one certificate to compare",  $_.ScriptStackTrace
         
     }
 
@@ -378,7 +355,7 @@ function DelCert()
 
     } catch {
 
-        return "Cannot delete certificate: ", $_.ScriptStackTrace
+        return "Error:Cannot delete certificate: ", $_.ScriptStackTrace
     }
 }
 
@@ -397,7 +374,7 @@ function CheckImportCert()
     
 
     param(
-
+   
         [string]$certificateinfo
 
     )
@@ -405,21 +382,53 @@ function CheckImportCert()
     try {
         if($certificateinfo.Length -eq '0'){
 
-           return "Import Certificate failed. Exit script."
+           return "Error:Import Certificate failed. Exit script."
            Exit
 
         } else {
        
-            return "Certificate Import succesfully"
+            return "Verbose:Import Certificate successful"
 
         }
 
     } catch {
 
-        write-host " wron"
+        write-host "Error: Wrong certificate type. Exit script.", $_.ScriptStackTrace
+        
 
     }
    
+}
+
+
+function SplitBeforeLog()
+{
+    <#
+    .SYNOPSIS
+    Split string into array
+        
+    .DESCRIPTION
+    Split message that contains msg level and msg. and return both. 
+    
+    .PARAMETERS $Log
+    Message with Level
+
+
+    #>
+    
+
+    param (
+        [array]$log
+    )
+
+
+    $log = $log.Split(":")
+    $msglevel = $log[0]
+    $msg = $log[1]
+
+    return $msglevel, $msg
+
+
 }
 
 
@@ -459,7 +468,7 @@ function UnitePS()
     # 2. import checken
     $continuecheck = CheckImportCert $result
         
-    if($continuecheck -like "*succesfully*"){
+    if($continuecheck -like "*suc*"){
         
         
         # 3. Get thumbprint of the cert with latest expiration date
@@ -467,44 +476,85 @@ function UnitePS()
         #    call comparecert and receive only the thumbprint with the latest expiration date
     
         $certinfo = GetAllCertInfo 
-        $thumbprintnew = CompareCert $certinfo 
-        write-host "thumbprint new: " $thumbprintnew
+        $thumbprintnew = CompareCert $certinfo
+        $msg = "Thumbprint new: ", $thumbprintnew
+        writelog "Verbose" $msg
+        Write-host $msg
 
         
         # 4.  Get the certifcate hash from the current binded port 443
         $port = 443
         $thumbprintold= GetCertHash $port 
-        write-host "thumbprint old: " $thumbprintold
+        $msg = "Thumbprint old: " $thumbprintold
+        writelog "Verbose" $msg
+        Write-host $msg
+
 
         
         # 4. Get bindings and write to logfile
-        GetBindings | Out-File $log -Append
+        foreach($port in $array) {
+            
+            $bindings = & netsh http show sslcert ipport=0.0.0.0:$port
+            writelog "Verbose" $bindings
+                        
+            foreach($line in $bindings) {
+              
+                write-host $line
+            
+            }
 
+        }
 
+        
         # 6 and 7. (Un)bind certificate
         $array = @(443,29912,444)
         
         foreach($port in $array) {
 
-            UnbindCert $port | Out-File $log -Append
-    
+            $msg = UnbindCert $port
+            $msg = SplitBeforeLog $msg
+            writelog $msg[0] $msg[1]
+            write-host $msg[1]
+
         }
 
         foreach($port in $array) {
 
-            BindCert $port $thumbprintnew  | Out-File $log -Append
-    
+            $msg = BindCert $port $thumbprintnew
+            $msg = SplitBeforeLog $msg
+            writelog $msg[0] $msg[1]
+            write-host $msg[1]
+
         }
 
         
         # 8. Get the new bindings and write to logfile
-        GetBindings | Out-File $log -Append
+        foreach($port in $array) {
+            
+            $bindings = & netsh http show sslcert ipport=0.0.0.0:$port
+
+            $msg = SplitBeforeLog $bindings
+            writelog "Verbose" $bindings
+            
+            foreach($line in $bindings) {
+                
+                write-host $line
+            
+            }
+
+
+        }
 
         
         # 9. Delete unbinded certificate
         DelCert $thumbprintold | Out-File $log -Append
-        $l = writelog "Verbose" "Deleted certificate thumbprint: $thumbprintold"
-        write-output $l
+        
+        $msg = "Deleted certificate with thumbprint: $thumbprintold"
+        $msg = SplitBeforeLog $msg
+        writelog $msg[0] $msg[1]
+        write-host $msg[1]
+
+                
 
     }
 
@@ -568,7 +618,5 @@ if($system -eq "ups"){
 
 
 # TODO
-# check input arg if it is in the order
-# write to logs
 # write for Ofelia
 # write for SS ( dubb cert)
