@@ -60,22 +60,22 @@ function writelog()
         Verbose
         {
             Add-Content -Path $fLogname -Value "[V] - $log"
-            write-verbose -Message $log
+            #write-verbose -Message $log
         }
         Warning
         {
             Add-Content -Path $fLogname -Value "[W] - $log"
-            write-warning -Message $log
+            #write-warning -Message $log
         }
         Error
         {
             Add-Content -Path $fLogname -Value "[E] - $log"
-            write-error -Message $log
+            #write-error -Message $log
         }
         Default
         {
             Add-Content -Path $fLogname -Value "[I] - $log"
-            write-output $log
+            #write-output $log
         }
     }
 }
