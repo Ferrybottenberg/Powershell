@@ -485,7 +485,7 @@ function UnitePS()
         # 4.  Get the certifcate hash from the current binded port 443
         $port = 443
         $thumbprintold= GetCertHash $port 
-        $msg = "Thumbprint old: " $thumbprintold
+        $msg = "Thumbprint old: ", $thumbprintold
         writelog "Verbose" $msg
         Write-host $msg
 
