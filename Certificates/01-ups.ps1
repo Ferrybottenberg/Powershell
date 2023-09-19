@@ -1,7 +1,8 @@
 <#
 
   Version : 0.1
-  Date    : 12-9-2023
+  Date    : 19-9-2023
+
 
   This script can be used to import certificates (NonSecure) and auto (Un)bind old with new certificate.
   after import the new certificate the thumbprint of the certifacte with the latest expiration date will be used for binding and the old non used 
@@ -35,34 +36,10 @@
 
     0.1 First release With UPS
     
-
 #>
 
 
-
-
-
-##################### START SCRIPT #####################
-# read with named params. can be both names and unnamed
-
-# NOTE  THIS MUST BE THE FIRST LINE of CODE. Don't put code above this line!
-
-
-param ( 
-        [parameter (Mandatory)]$cert,
-        [parameter (Mandatory)]$certpwd,
-        [parameter (Mandatory)]$system
-    )
-
-
-
-##################### Generic import ###################
-. $PSScriptRoot/write-log.ps1
-
-   
-
-##################### Functions ##################### 
-
+##################### Functions ####################
 
 function ImportCertPfxNonSecure()
 {
@@ -123,8 +100,6 @@ function GetAllCertInfo()
 }
 
 
-
-
 function GetCertHash()
 {
     <#
@@ -159,33 +134,6 @@ function GetCertHash()
     }
 }
 
-
-function Logs()
-{
-     <#
-
-    .SYNOPSIS
-        Write outout to a logfile using a external script
-    
-    .PARAMETER $Loglevel
-        Levels: ("Verbose", "Warning", "Error", "Default")
-
-    .PARAMETER $logmsg
-        Log message
-
-    #>
-
-    param(
-    
-        [string]$loglevel,
-        [string]$logmsg
-    
-    )
-
-
-    write-log $loglevel $logmsg
-  
-}
 
 
 function UnbindCert()
@@ -561,62 +509,3 @@ function UnitePS()
 }
 
 
-function Ofelia()
-{
-    write-host "Hi Ofelia"
-    # todo
-    # check input
-    # check if cert location exist
-    # check if cert loc is not empty
-    # override  cert
-    # test if reload service is needed
-}
-
-
-
-
-
-
-##################### system ##################### 
-
-# first step after starting script
-
-if($system -eq "ups"){
-    
-    if($cert -notlike "*.pfx"){
-    
-        write-host "Invalid input or order. Certificate must be of the '.pfx' type`n"
-        Write-host "Input order: Certificate(.PFX) / Password / System "
-        
-
-    } else {
-
-        UnitePS $cert $certpwd
-
-    }
-  
-
- 
-} elseif($system -eq "ofelia"){
-    
-    Ofelia $cert $pwd 
-
-} elseif($system -eq "smartsense"){
-    
-    Smartsense $cert $pwd
-
-} else {
-    
-    write-host "No system found!"
-}
-
-
-
-
-
-
-
-
-# TODO
-# write for Ofelia
-# write for SS ( dubb cert)
