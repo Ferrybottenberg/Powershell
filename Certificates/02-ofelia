@@ -153,7 +153,7 @@ function CopyCert()
 
     try{
 
-        Copy $Cert -Destination $Certfolder -Recurse -Force
+        Copy-Item $Cert -Destination $Certfolder -Recurse -Force
         return $true
 
     }catch {
@@ -288,7 +288,7 @@ function Ofelia()
        try {
 
             # get certificate name and call function compare name if name is true then rename current cert.
-            $certname = (Get-ChildItem $Certfolder | where{$_.Name}).Name
+            $certname = (Get-ChildItem $Certfolder | Where-Object{$_.Name}).Name
             
             #split certfolder\cert into only certificate name
             $certsplitted = SplitFileName $cert
@@ -359,7 +359,7 @@ function Ofelia()
         # 3. Delete certificate
         # check if the old renamed cert exists and delete
         
-        $renamedcert = (Get-ChildItem $Certfolder | where{$_.Name -like "!*"}).Name
+        $renamedcert = (Get-ChildItem $Certfolder | Where-Object{$_.Name -like "!*"}).Name
                 
         if($null -ne $renamedcert){
 
