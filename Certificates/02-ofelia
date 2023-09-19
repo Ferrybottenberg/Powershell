@@ -1,0 +1,381 @@
+<#
+
+  Version : 0.1
+  Date    : 19-9-2023
+
+
+  This script can be used to copy and delete certificate in the ofelia folder
+  after the certificate copy the appSettingCustom file will be compared with the name and pwd what was given as arg 
+  when starting maincertificate.ps1
+
+  Start the script with three arguments. All arguments are mandatory and will be used to import the right certificate at the right way.
+  Start powershell ISE as "Administrator" and run one of the codes below.
+  
+  Start script example:  
+
+            Format  >>    .\<scriptname>.ps1 -cert <path\to\certificate> -pwd <certificate\password> -system <UPS\Ofelia\USS>
+            
+                    >>    .\<scriptname>.ps1 -cert c:\certificate.pfx -pwd 1234 -system ups
+
+                        or
+            
+                    >>    .\<scriptname>.ps1 c:\certificate.pfx 1234 ups
+
+
+
+    NOTE: Script only works if a certificate is already installed. And Single node only
+#>
+
+
+
+
+##################### Release Notes ####################
+<#
+
+    0.1 first release ofelia
+    
+#>
+
+
+
+
+##################### Import ###################
+
+. $PSScriptRoot/00-write-log.ps1
+
+
+
+
+##################### Functions ####################
+
+function FolderEmptyChk()
+{
+
+    <#
+
+    .SYNOPSIS
+        Check if folder is empty and return boolean
+
+    #>
+
+    
+    param(
+
+        [string]$certfolder
+    )
+
+
+    If ((Get-ChildItem -Path $certfolder -Force | Measure-Object).Count -eq 0) {
+
+        return $true
+
+    } else {
+
+        return $false
+    }
+
+
+}
+
+
+
+function CompareCert()
+{
+
+    <#
+
+    .SYNOPSIS
+        Compare certificate names and return boolean
+
+    #>
+
+
+    param(
+
+        [string]$cert,
+        [string]$certname
+
+    )
+
+
+    if($cert -eq $certname ){
+
+        return $true
+
+    } else {
+
+        return $false
+    }
+
+
+
+}
+
+
+function SplitFileName()
+{
+    <#
+
+    .SYNOPSIS
+        Split string into array
+        
+    .DESCRIPTION
+        Split path and certificate name and return name
+    
+    .PARAMETERS $cert
+        certificate with path like c:\certificate.pfx
+    
+
+    #>
+    
+
+    param (
+        [array]$cert
+    )
+
+
+    $cert = $cert.Split("\")
+    return $cert[1]
+
+
+}
+
+
+function CopyCert()
+{
+
+    param(
+
+            [string]$Certfolder,
+            [string]$Cert
+
+        )
+
+    try{
+
+        Copy $Cert -Destination $Certfolder -Recurse -Force
+        return $true
+
+    }catch {
+
+        return "Error:Cannot copy certificate",  $_.ScriptStackTrace
+
+
+    }
+
+}
+
+
+function Format-Json()
+{
+
+    <#
+
+    .SYNOPSIS
+        Prettifies JSON output.
+   
+    .DESCRIPTION
+        Reformats a JSON string so the output looks better than what ConvertTo-Json outputs.
+    
+    .PARAMETER Json
+        Required: [string] The JSON text to prettify.
+    
+    .PARAMETER Minify
+        Optional: Returns the json string compressed.
+    
+    .PARAMETER Indentation
+        Optional: The number of spaces (1..1024) to use for indentation. Defaults to 4.
+    
+    .PARAMETER AsArray
+        Optional: If set, the output will be in the form of a string array, otherwise a single string is output.
+    
+    .EXAMPLE
+        $json | ConvertTo-Json  | Format-Json -Indentation 2
+
+    #>
+
+
+    [CmdletBinding(DefaultParameterSetName = 'Prettify')]
+
+    Param(
+
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [string]$Json,
+
+        [Parameter(ParameterSetName = 'Minify')]
+        [switch]$Minify,
+
+        [Parameter(ParameterSetName = 'Prettify')]
+        [ValidateRange(1, 1024)]
+        [int]$Indentation = 4,
+
+        [Parameter(ParameterSetName = 'Prettify')]
+        [switch]$AsArray
+    )
+
+
+    if ($PSCmdlet.ParameterSetName -eq 'Minify') {
+        return ($Json | ConvertFrom-Json) | ConvertTo-Json -Depth 100 -Compress
+    }
+
+    # If the input JSON text has been created with ConvertTo-Json -Compress
+    # then we first need to reconvert it without compression
+    if ($Json -notmatch '\r?\n') {
+        $Json = ($Json | ConvertFrom-Json) | ConvertTo-Json -Depth 100
+    }
+
+    $indent = 0
+    $regexUnlessQuoted = '(?=([^"]*"[^"]*")*[^"]*$)'
+
+    $result = $Json -split '\r?\n' |
+        ForEach-Object {
+            # If the line contains a ] or } character, 
+            # we need to decrement the indentation level unless it is inside quotes.
+            if ($_ -match "[}\]]$regexUnlessQuoted") {
+                $indent = [Math]::Max($indent - $Indentation, 0)
+            }
+
+            # Replace all colon-space combinations by ": " unless it is inside quotes.
+            $line = (' ' * $indent) + ($_.TrimStart() -replace ":\s+$regexUnlessQuoted", ': ')
+
+            # If the line contains a [ or { character, 
+            # we need to increment the indentation level unless it is inside quotes.
+            if ($_ -match "[\{\[]$regexUnlessQuoted") {
+                $indent += $Indentation
+            }
+
+            $line
+        }
+
+    if ($AsArray) { return $result }
+    return $result -Join [Environment]::NewLine
+}
+
+
+
+
+
+################################################
+
+function Ofelia()
+{
+
+
+    param(
+
+        [string]$Certfolder,
+        [string]$Cert,
+        [string]$Certpassword
+
+    )
+
+
+
+    # 1 check if folder is empty. if not renamecertificate
+    $Emptyfolder = FolderEmptyChk $certfolder
+    
+    if($Emptyfolder -eq "true"){
+        
+        CopyCert $Certfolder $Cert
+        
+        $msg = "Deleted certificate with thumbprint: $thumbprintold"
+        $msg = SplitBeforeLog $msg
+        writelog $msg[0] $msg[1]
+        write-host $msg[1]
+
+       
+     
+    } else {
+           
+       try {
+
+            # get certificate name and call function compare name if name is true then rename current cert.
+            $certname = (Get-ChildItem $Certfolder | where{$_.Name}).Name
+            
+            #split certfolder\cert into only certificate name
+            $certsplitted = SplitFileName $cert
+            $R = CompareCert $certsplitted $certname
+            
+            
+            if($R -eq $true){
+                 
+
+                Rename-Item -Path $Certfolder\$certname -NewName "!$certname"
+                CopyCert $Certfolder $Cert
+               
+
+            
+            } else {
+
+                try{
+                    
+                   CopyCert $Certfolder $Cert | Out-Null
+                  
+                    
+            
+                } catch {
+            
+                    return "Error:Cannot copy certificate",  $_.ScriptStackTrace
+                    exit
+                }
+            }
+            
+        } catch {
+       
+            return "Error:Cannot copy or name certificate",  $_.ScriptStackTrace
+       
+        }
+        
+    }
+
+
+
+    if($true){
+    
+    
+        
+
+        # 2. replace certname and password in file
+
+        $jsonfilepath =  "C:\Program Files\Appliware\Ofelia\appSettingsCustom.json" 
+        $jsoncontent = get-content $jsonfilepath | ConvertFrom-Json
+
+        #change content
+        $jsoncontent.Kestrel.Endpoints.Https.Certificate.Path = "C:\ProgramData\Ofelia\$certsplitted"
+        $jsoncontent.Kestrel.Endpoints.Https.Certificate.Password = $Certpassword
+  
+         
+        $jsonstring = $jsoncontent | ConvertTo-Json -Depth 10 | Format-Json
+        $jsonstring | set-content -path $jsonfilepath 
+
+
+
+        # 3. Delete certificate
+        # check if the old renamed cert exists and delete
+        
+        $renamedcert = (Get-ChildItem $Certfolder | where{$_.Name -like "!*"}).Name
+                
+        if($null -ne $renamedcert){
+
+            Get-childitem -path $Certfolder -File $renamedcert| Remove-Item
+            write-host "remove cert " $renamedcert
+               
+        } 
+            
+        
+        
+
+
+    
+    } else {
+
+        exit
+
+    }
+
+
+                     
+
+        
+}
+
