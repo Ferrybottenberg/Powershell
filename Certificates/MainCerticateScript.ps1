@@ -67,29 +67,66 @@ param (
 
 
 
-##################### system ##################### 
 
+
+
+##################### main Functions ##################### 
+
+
+function ExtensionCheck()
+{
+    <#
+
+    .SYNOPSIS
+    Checks certificate extension and returns boolean true or write to console and exit script
+
+    .PARAMETER $Cert
+    certificate with extension
+    
+    #>
+
+
+    param(
+        [string]$cert
+    )
+
+
+    if($cert -notlike "*.pfx"){
+    
+            write-host "Invalid input or order. Certificate must be of the '.pfx' type`n"
+            Write-host "Input order: Certificate(.PFX) / Password / System "
+            exit
+
+    } else {
+    
+        return $true
+
+    }
+
+}
+
+
+
+
+
+
+##################### system ##################### 
 # first step after starting script
+
+
 
 if($system -eq "ups"){
     
-    if($cert -notlike "*.pfx"){
-    
-        write-host "Invalid input or order. Certificate must be of the '.pfx' type`n"
-        Write-host "Input order: Certificate(.PFX) / Password / System "
-        
+    $check = ExtensionCheck $cert
+    if($check-eq $true){ UnitePS $cert $certpwd }
 
-    } else {
-
-        UnitePS $cert $certpwd
-
-    }
-  
-
- 
+   
 } elseif($system -eq "ofelia"){
     
-    Ofelia $cert $pwd 
+    $check = ExtensionCheck $cert
+    $certfolder = "C:\ProgramData\Ofelia\"
+    if($check-eq $true){ Ofelia $certfolder $cert $pwd }
+
 
 } elseif($system -eq "smartsense"){
     
