@@ -124,8 +124,8 @@ if($system -eq "ups"){
 } elseif($system -eq "ofelia"){
     
     $check = ExtensionCheck $cert
-    $certfolder = "C:\ProgramData\Ofelia\"
-    if($check-eq $true){ Ofelia $certfolder $cert $pwd }
+    $certfolder = "C:\ProgramData\Ofelia\" 
+    if($check-eq $true){ Ofelia $certfolder $cert $certpwd }
 
 
 } elseif($system -eq "smartsense"){
@@ -134,7 +134,7 @@ if($system -eq "ups"){
 
 } else {
     
-    write-host "No system found!"
+    write-host "No system found. Check system name!"
 }
 
 
