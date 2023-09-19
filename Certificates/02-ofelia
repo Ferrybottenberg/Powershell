@@ -276,12 +276,10 @@ function Ofelia()
     
     if($Emptyfolder -eq "true"){
         
-        CopyCert $Certfolder $Cert
-        
-        $msg = "Deleted certificate with thumbprint: $thumbprintold"
-        $msg = SplitBeforeLog $msg
-        writelog $msg[0] $msg[1]
-        write-host $msg[1]
+        CopyCert $Certfolder $Cert | Out-Null
+        $msg = "Copied certificate '$cert' into folder '$certfolder'"
+        writelog "Verbose" $msg
+        write-host $msg
 
        
      
@@ -301,8 +299,16 @@ function Ofelia()
                  
 
                 Rename-Item -Path $Certfolder\$certname -NewName "!$certname"
-                CopyCert $Certfolder $Cert
-               
+                CopyCert $Certfolder $Cert | Out-Null
+                $msg = "Renamed current certificate '$cert' into '!$certname'"
+                writelog "Verbose" $msg
+                write-host $msg
+
+                $msg = "Copied certificate '$cert' into folder '$certfolder'"
+                writelog "Verbose" $msg
+                write-host $msg
+
+                 
 
             
             } else {
@@ -310,7 +316,10 @@ function Ofelia()
                 try{
                     
                    CopyCert $Certfolder $Cert | Out-Null
-                  
+                   $msg = "Copied certificate '$cert' into folder '$certfolder'"
+                   writelog "Verbose" $msg
+                   write-host $msg
+
                     
             
                 } catch {
@@ -330,10 +339,7 @@ function Ofelia()
 
 
 
-    if($true){
-    
-    
-        
+    if($true){      
 
         # 2. replace certname and password in file
 
@@ -358,24 +364,15 @@ function Ofelia()
         if($null -ne $renamedcert){
 
             Get-childitem -path $Certfolder -File $renamedcert| Remove-Item
-            write-host "remove cert " $renamedcert
+            $msg = "Removed certificate :", $renamedcert
+            writelog "Verbose" $msg
+            write-host $msg
+
                
         } 
-            
-        
-        
-
-
-    
-    } else {
-
-        exit
-
+     
     }
 
-
-                     
-
-        
+   
 }
 
