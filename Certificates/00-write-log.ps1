@@ -19,6 +19,41 @@
 
 
 
+function SplitBeforeLog()
+{
+    <#
+    .SYNOPSIS
+    Split string into array
+        
+    .DESCRIPTION
+    Split message that contains msg level and msg. and return both. 
+    
+    .PARAMETERS $Log
+    Message with Level
+
+
+    #>
+    
+
+    param (
+        [array]$log
+    )
+
+
+    $log = $log.Split(":")
+    $msglevel = $log[0]
+    $msg = $log[1]
+
+    return $msglevel, $msg
+
+
+}
+
+
+
+
+
+
 function writelog()
 {
 
@@ -79,7 +114,6 @@ function writelog()
         }
     }
 }
-
 
 
 #$ENV:LOG_FILE = ''
