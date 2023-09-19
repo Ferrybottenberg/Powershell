@@ -39,6 +39,18 @@
 #>
 
 
+
+
+
+
+##################### Import ###################
+
+. $PSScriptRoot/00-write-log.ps1
+
+
+
+
+
 ##################### Functions ####################
 
 function ImportCertPfxNonSecure()
@@ -298,7 +310,9 @@ function DelCert()
 
     try{
 
-        return (Get-ChildItem Cert:\LocalMachine\My\$thumbprint | Remove-Item)
+        Get-ChildItem Cert:\LocalMachine\My\$thumbprint | Remove-Item |out-null
+        return "Verbose: Deleted certificate with thumbprint $thumbprint"
+
         
 
     } catch {
@@ -335,7 +349,7 @@ function CheckImportCert()
 
         } else {
        
-            return "Verbose:Import Certificate successful"
+            return "Verbose: Import Certificate successful"
 
         }
 
@@ -346,37 +360,6 @@ function CheckImportCert()
 
     }
    
-}
-
-
-function SplitBeforeLog()
-{
-    <#
-    .SYNOPSIS
-    Split string into array
-        
-    .DESCRIPTION
-    Split message that contains msg level and msg. and return both. 
-    
-    .PARAMETERS $Log
-    Message with Level
-
-
-    #>
-    
-
-    param (
-        [array]$log
-    )
-
-
-    $log = $log.Split(":")
-    $msglevel = $log[0]
-    $msg = $log[1]
-
-    return $msglevel, $msg
-
-
 }
 
 
@@ -495,12 +478,12 @@ function UnitePS()
 
         
         # 9. Delete unbinded certificate
-        DelCert $thumbprintold | Out-File $log -Append
+        DelCert $thumbprintold |out-null
         
         $msg = "Deleted certificate with thumbprint: $thumbprintold"
         $msg = SplitBeforeLog $msg
-        writelog $msg[0] $msg[1]
-        write-host $msg[1]
+        writelog "Verbose" $msg
+        write-host $msg
 
                 
 
