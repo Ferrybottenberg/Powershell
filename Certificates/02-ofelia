@@ -54,7 +54,11 @@ function FolderEmptyChk()
     <#
 
     .SYNOPSIS
-        Check if folder is empty and return boolean
+        Check if folder is exists and then if empty and return boolean
+
+    .PARAMETER $certfolder
+        folder path
+
 
     #>
 
@@ -64,49 +68,23 @@ function FolderEmptyChk()
         [string]$certfolder
     )
 
+    
+        if(Test-Path -Path $certfolder){
 
-    If ((Get-ChildItem -Path $certfolder -Force | Measure-Object).Count -eq 0) {
+            If ((Get-ChildItem -Path $certfolder -Force | Measure-Object).Count -eq 0) {
 
-        return $true
+                return $true
 
-    } else {
+            } else {
 
-        return $false
-    }
+                return $false
+            }
 
-
-}
-
-
-
-function CompareCert()
-{
-
-    <#
-
-    .SYNOPSIS
-        Compare certificate names and return boolean
-
-    #>
-
-
-    param(
-
-        [string]$cert,
-        [string]$certname
-
-    )
-
-
-    if($cert -eq $certname ){
-
-        return $true
-
-    } else {
-
-        return $false
-    }
-
+        } else {
+         
+            return $false
+            exit
+        }
 
 
 }
@@ -124,7 +102,6 @@ function SplitFileName()
     
     .PARAMETERS $cert
         certificate with path like c:\certificate.pfx
-    
 
     #>
     
@@ -253,9 +230,7 @@ function Format-Json()
 
 
 
-
-
-################################################
+##################### function "system choice" ##################### 
 
 function Ofelia()
 {
@@ -274,14 +249,20 @@ function Ofelia()
     # 1 check if folder is empty. if not renamecertificate
     $Emptyfolder = FolderEmptyChk $certfolder
     
-    if($Emptyfolder -eq "true"){
+    if($Emptyfolder -eq $true){
         
         CopyCert $Certfolder $Cert | Out-Null
-        $msg = "Copied certificate '$cert' into folder '$certfolder'"
+        $msg = "Copied certificate '$cert' into empty folder '$certfolder'"
         writelog "Verbose" $msg
         write-host $msg
 
-       
+    }elseif($Emptyfolder -eq $false){
+
+        $msg = "Folder '$certfolder' doesn't exists. Exit script"
+        writelog "Error" $msg
+        write-host $msg
+        exit
+
      
     } else {
            
@@ -307,7 +288,10 @@ function Ofelia()
                         
         } catch {
        
-            return "Error:Cannot copy or name certificate",  $_.ScriptStackTrace
+             $msg = "Cannot copy or name certificate",  $_.ScriptStackTrace
+             writelog "Error" $msg
+             write-host $msg
+
        
         }
         
@@ -315,7 +299,7 @@ function Ofelia()
 
 
 
-    if($true){      
+    if($true){
 
         # 2. replace certname and password in file
 
@@ -329,6 +313,10 @@ function Ofelia()
          
         $jsonstring = $jsoncontent | ConvertTo-Json -Depth 10 | Format-Json
         $jsonstring | set-content -path $jsonfilepath 
+        $msg = "Replaced certificatename and password in file '$jsonfilepath'"
+        writelog "Verbose" $msg
+        write-host $msg
+            
 
 
 
@@ -340,7 +328,7 @@ function Ofelia()
         if($null -ne $renamedcert){
 
             Get-childitem -path $Certfolder -File $renamedcert| Remove-Item
-            $msg = "Removed certificate :", $renamedcert
+            $msg = "Delete certificate '$renamedcert'"
             writelog "Verbose" $msg
             write-host $msg
                            
